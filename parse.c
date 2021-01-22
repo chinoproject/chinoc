@@ -392,7 +392,7 @@ AST *statement(int v,int flag) {
             break;
         case CONTINUE:
             if (flag != LOOP_OR_SWITCH)
-                error("非法使用break");
+                error("非法使用continue");
             ast = continue_statement();
             break;
         case DO:
@@ -467,6 +467,7 @@ AST *primary_expression(symbol_t *t) {
             s->value = value;
             global_symbol = s;
             ast = newVar(0,s);
+            ast->type = token;
             break;
         case LP:
             get_token();
@@ -486,8 +487,10 @@ AST *primary_expression(symbol_t *t) {
                 if (s == NULL) {
                     s = new_symbol();
                     s->name = metadata_ptr->content;
+                    insert_item(unknown_table,s);
                 }
             ast = newVar(0,s);
+            ast->type = token;
             get_token();
             break;
     }
@@ -867,6 +870,8 @@ AST *switch_statement(int v) {
             AST *case_cond;
             skip(CASE);
             case_cond = expression();
+            if (check_var(case_cond))
+                error("case语句不能存在变量");
             skip(COLON);
             Statement *case_statement = statement(v,LOOP_OR_SWITCH)->body;
             AST *case_body = newAST(CASE,NONE,NONE,NULL,NULL,NULL,NULL,0,case_cond, \
@@ -917,7 +922,7 @@ void parse_unit(void) {
         gen_ir(compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH));
     }
     if (unknown_table->entrycount != 0)
-        error("error\n");
+        error("存在未定义的变量\n");
 }
 AST *while_statement(int v) {
     AST *cond,*body;
@@ -927,4 +932,18 @@ AST *while_statement(int v) {
     skip(RP);
     body = statement(v,LOOP_OR_SWITCH);
     return newWhile(cond,body->body);
+}
+
+//检查ast中是否存在变量
+int check_var(AST *ast) {
+    if (ast == NULL)
+        return 0;
+    if (ast->type == FUNC_CALL || ast->type == ID)
+        return 1;
+    return  (ast->left_type == ISAST ?  \
+            check_var(ast->left_ast) :  \
+            (ast->left_symbol != NULL && ast->left_symbol->name != NULL))   \
+            || (ast->right_type == ISAST ?  \
+            check_var(ast->right_ast) : \
+            (ast->right_symbol != NULL && ast->right_symbol->name != NULL));
 }
