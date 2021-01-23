@@ -274,7 +274,7 @@ void direct_declarator(symbol_t *t) {
         }
         get_token();
     } else
-        if ((t->type.t & T_MASK) != 0)
+        if ((t->type.t & T_MASK) != 0 && (t->type.t & T_MASK != T_VOID))
             error("error!");
     direct_declarator_postfix(t);
 }
@@ -369,40 +369,45 @@ AST *expression_statement(void) {
 }
 AST *statement(int v,int flag) {
     AST *ast = NULL;
-    switch(token) {
-        case LBB:
-            ast = compound_statement(v,flag);
-            break;
-        case IF:
-            ast = if_statement(v,flag);
-            break;
-        case FOR:
-            ast = for_statement(v);
-            break;
-        case SWITCH:
-            ast = switch_statement(v);
-            break;
-        case BREAK:
-            if (flag != LOOP_OR_SWITCH)
-                error("非法使用break");
-            ast = break_statement();
-            break;
-        case WHILE:
-            ast = while_statement(v);
-            break;
-        case CONTINUE:
-            if (flag != LOOP_OR_SWITCH)
-                error("非法使用continue");
-            ast = continue_statement();
-            break;
-        case DO:
-            ast = do_statement(v);
-        case YYEOF:
-            break;
-        default:
-            ast = expression_statement();
-            break;
+    if (token == LBB)
+        return compound_statement(v,flag);
+    if (v == C_LOCAL) {
+        switch(token) {
+            case IF:
+                ast = if_statement(v,flag);
+                break;
+            case FOR:
+                ast = for_statement(v);
+                break;
+            case SWITCH:
+                ast = switch_statement(v);
+                break;
+            case BREAK:
+                if (flag != LOOP_OR_SWITCH)
+                    error("非法使用break");
+                ast = break_statement();
+                break;
+            case WHILE:
+                ast = while_statement(v);
+                break;
+            case CONTINUE:
+                if (flag != LOOP_OR_SWITCH)
+                    error("非法使用continue");
+                ast = continue_statement();
+                break;
+            case DO:
+                ast = do_statement(v);
+            case YYEOF:
+                break;
+            default:
+                ast = expression_statement();
+                break;
+        }
+    } else {
+        error("error\n");
+        exit(1);
     }
+    
     return ast;
 }
 int is_type_specifier(void) {
@@ -423,7 +428,6 @@ int is_type_specifier(void) {
 
 AST *compound_statement(int v,int flag) {
     get_token();
-    int count;
     Statement *s = newStatement(default_body_len);
     while (token == INCLUDE || token == DEFINE) {
         get_token();

@@ -137,6 +137,9 @@ void __gen_type_ir(FILE *f,symbol_t *s) {
         case T_SHORT:
             fprintf(f,"i2 ");
             break;
+        case T_VOID:
+            fprintf(f,"void");
+            break;
         case T_STRUCT:
             fprintf(f,"struct %s ",s->type.ref->name);
             break;
@@ -149,7 +152,8 @@ char *__gen_func_ir(AST *ast,int indentation) {
         fprintf(f,"%s(",ast->left_symbol->name);
         for(symbol_t *s = ast->left_symbol->next; s != NULL;s = s->next) {
             __gen_type_ir(f,s);
-            fprintf(f," %s",s->name);
+            if (s->name != NULL)
+                fprintf(f," %s",s->name);
             if (s->next != NULL)
                 fprintf(f,",");
         }
