@@ -4,18 +4,19 @@
 #include "ast.h"
 #include "gen_ir.h"
 #include "token.h"
-#include "parse.h"
-
+#include "error.h"
+#include "gc.h"
 HIR *gen_ir(AST *ast) {
-    HIR *ir = malloc(sizeof(HIR));
+    HIR *ir = _malloc(sizeof(HIR));
     if (NULL == ir)
         return NULL;
-    ir->ir = malloc(sizeof(char *) * ast->body->astcount);
+    ir->ir = _malloc(sizeof(char *) * ast->body->astcount);
     if (ir->ir == NULL) {
-        free(ir);
+        _free(ir);
         return NULL;
     }
-    memset(ir->ir,0,ast->body->astcount);
+    if (ast->body->astcount != 0)
+        memset(ir->ir,0,ast->body->astcount);
     ir->len = ast->body->astcount;
     ir->ircount = 0;
     for(size_t n = 0;n < ast->body->astcount;n++) {
@@ -49,12 +50,13 @@ HIR *gen_ir(AST *ast) {
                 printf(ir->ir[n]);
                 break;
         }
+        ir->ircount++;
     }
     return ir;
 }
 char *repeat_str(char *str,size_t n) {
     size_t _len = strlen(str);  
-    char *re_str = malloc(sizeof(char)*_len*n + 1);   
+    char *re_str = _malloc(sizeof(char)*_len*n + 1);   
     if (re_str == NULL) {   
         error("OOM");
         return NULL;  
@@ -65,12 +67,17 @@ char *repeat_str(char *str,size_t n) {
     return re_str; 
 }
 void __gen_ir(FILE *f,AST *ast,int indentation) {
+    char *str;
     switch(ast->type) {
         case IF:
-            fprintf(f,__gen_if_ir(ast,indentation + 1));
+            str = __gen_if_ir(ast,indentation + 1);
+            fprintf(f,str);
+            _free(str);
             break;
         case LOOP:
-            fprintf(f,__gen_loop_ir(ast,indentation + 1));
+            str = __gen_loop_ir(ast,indentation + 1);
+            fprintf(f,str);
+            _free(str);
             break;
         case CONTINUE:
             get_indent(f,indentation + 1);
@@ -82,10 +89,12 @@ void __gen_ir(FILE *f,AST *ast,int indentation) {
             break;
         case CASE:
             get_indent(f,indentation + 1);
-            fprintf(f,"case %s:\n",__gen_expression_ir(ast->cond));
+            str = __gen_expression_ir(ast->cond);
+            fprintf(f,"case %s:\n",str);
             for(size_t n = 0;n < ast->body->astcount;n++) {
                 __gen_ir(f,ast->body->ast[n],indentation + 1);
             }
+            _free(str);
             break;
         case DEFAULT:
             get_indent(f,indentation + 1);
@@ -96,25 +105,33 @@ void __gen_ir(FILE *f,AST *ast,int indentation) {
             break;
         case FUNC_CALL:
             get_indent(f,indentation + 1);
-            fprintf(f,__gen_func_ir(ast,indentation + 1));
+            str = __gen_func_ir(ast,indentation + 1);
+            fprintf(f,str);
+            _free(str);
             break;
         case SWITCH:
             get_indent(f,indentation + 1);
-            fprintf(f,__gen_switch_ir(ast,indentation));
+            str = __gen_switch_ir(ast,indentation);
+            fprintf(f,str);
+            _free(str);
             break;
         case DEF_VAR:
-            fprintf(f,__gen_var_ir(ast,indentation + 1));
+            str = __gen_var_ir(ast,indentation + 1);
+            fprintf(f,str);
+            _free(str);
             break;
         default:
-            fprintf(f,__gen_expression_ir(ast));
+            str = __gen_expression_ir(ast);
+            fprintf(f,str);
             fprintf(f,";\n");
+            _free(str);
             break;
     }
 }
 char *__gen_string(FILE *f) {
     fseek(f,0,SEEK_END);
     size_t len = ftell(f);
-    char *buffer = malloc(sizeof(char) * (len + 2));
+    char *buffer = _malloc(sizeof(char) * (len + 2));
     if (buffer == NULL) {
         error("OOM");
         fclose(f);
@@ -186,7 +203,7 @@ char *__gen_var_ir(AST *ast,int indentation) {
     else {
         char *x = repeat_str("*",ast->left_symbol->pointer_level);
         fprintf(f,x);
-        free(x);
+        _free(x);
     }
     if (ast->left_symbol->type.t == SSTRUCT) {
         // 打印结构体
@@ -261,7 +278,9 @@ char *__gen_if_ir(AST *ast,int indentation) {
     FILE *f = tmpfile();
     get_indent(f,indentation);
     fprintf(f,"if(");
-    fprintf(f,__gen_expression_ir(ast->cond));
+    char *str = __gen_expression_ir(ast->cond);
+    fprintf(f,str);
+    _free(str);
     fprintf(f,"){\n");
     for(size_t n = 0;n < ast->body->astcount;n++)
         __gen_ir(f,ast->body->ast[n],indentation);
@@ -417,4 +436,11 @@ char *__gen_expression_ir(AST *ast) {
         fprintf(buffer,")");
     }
     return __gen_string(buffer);
+}
+
+void free_hir(HIR *hir) {
+    for(size_t i = 0;i < hir->ircount;i++)
+        _free(hir->ir[i]);
+    _free(hir->ir);
+    _free(hir);
 }

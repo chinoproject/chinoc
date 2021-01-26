@@ -4,8 +4,6 @@
 #include "ast.h"
 #define C_GLOBAL    1
 #define C_LOCAL     0
-#define error(s)    {fprintf(stderr,"LINE:%d ",__LINE__);fprintf(stderr,s); fflush(stdout);}
-#define info(s)     {printf(s); fflush(stdout);}
 #define LOOP_OR_SWITCH 1
 #define NO_LOOP_OR_SWTICH 0
 
@@ -76,4 +74,5 @@ AST *while_statement(int v);
 void parse_unit(void);
 void print_ast(AST *ast);
 void print_call(symbol_t *t);
+int check_var(AST *);
 #endif

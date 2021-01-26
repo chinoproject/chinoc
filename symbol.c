@@ -4,18 +4,20 @@
 #include <string.h>
 #include "symbol.h"
 #include "parse.h"
+#include "error.h"
+#include "gc.h"
 TypeCode typecode;
 StorageClass storageclass;
 Table *global_table;
 Table *unknown_table;
 Table *alloc_table(void) {
-    Table *t = malloc(sizeof(Table));
+    Table *t = _malloc(sizeof(Table));
     if (NULL == t)
         error("OOM");
     return t;
 }
 void init_table(Table *t,size_t len) {
-    t->items = malloc(sizeof(symbol_t *) * len);
+    t->items = _malloc(sizeof(symbol_t *) * len);
     if(NULL == t->items) {
         error("OOM");
         exit(1);
@@ -80,12 +82,11 @@ void delete_item(Table *t,symbol_t *s) {
         return;
     
     i->hash_next = s->next;
-    //free_symbol(s);
     t->entrycount--;
 }
 
 void rehash_table(Table *t) {
-    symbol_t **r = malloc(sizeof(symbol_t *) * (t->len*2));
+    symbol_t **r = _malloc(sizeof(symbol_t *) * (t->len*2));
     if(NULL == r) {
         error("OOM");
         exit(1);
@@ -99,11 +100,11 @@ void rehash_table(Table *t) {
             x = l;
         }
     }
-    free(temp);
+    _free(temp);
 }
 
 type_t *new_type(int type) {
-    type_t *t = malloc(sizeof(type_t));
+    type_t *t = _malloc(sizeof(type_t));
     if(NULL == t) {
         error("OOM");
         exit(1);
@@ -114,13 +115,14 @@ type_t *new_type(int type) {
 }
 
 symbol_t *new_symbol(void) {
-    symbol_t *n = malloc(sizeof(symbol_t));
+    symbol_t *n = _malloc(sizeof(symbol_t));
     if(NULL == n) {
         error("OOM");
         return NULL;
     }
 
     memset(n,0,sizeof(symbol_t));
+    addObject(&gc_symbol,n);
     return n;
 }
 
@@ -129,16 +131,15 @@ void free_symbol(symbol_t *s) {
         return;
     if (s->value != NULL)
         free_value(s->value);
-    free(s->name);
-    free_symbol(s->next);
-    free(s);
+    _free(s->name);
+    _free(s);
 }
 
 void free_value(value_t *v) {
     if(v == NULL)
         return;
     free_value(v->next);
-    free(v);
+    _free(v);
 }
 
 symbol_t *struct_search(Table *table,const char *name) {
@@ -167,7 +168,7 @@ symbol_t *member_search(symbol_t *s,const char *name) {
 }
 
 value_t *new_value(void) {
-    value_t *v = malloc(sizeof(value_t));
+    value_t *v = _malloc(sizeof(value_t));
     if(v == NULL) {
         error("OOM");
         return NULL;
@@ -279,15 +280,15 @@ void print_symbol_info(symbol_t *t) {
 }
 
 stack_t *new_stack(size_t len) {
-    stack_t *s = malloc(sizeof(stack_t));
+    stack_t *s = _malloc(sizeof(stack_t));
     if  (s == NULL) {
         error("OOM");
         return NULL;
     }
-    s->stack = malloc(sizeof(symbol_t *) * default_stack_len);
+    s->stack = _malloc(sizeof(symbol_t *) * default_stack_len);
     if (s->stack == NULL) {
         error("OOM");
-        free(s);
+        _free(s);
         return NULL;
     }
     s->len = default_stack_len;
@@ -296,11 +297,11 @@ stack_t *new_stack(size_t len) {
 }
 
 void free_stack(stack_t *ptr) {
-    free(ptr->stack);
-    free(ptr);
+    _free(ptr->stack);
+    _free(ptr);
 }
 void expand_stack(stack_t *stack) {
-    symbol_t **e = malloc(sizeof(stack_t *) * (stack->len * 2));
+    symbol_t **e = _malloc(sizeof(stack_t *) * (stack->len * 2));
     if (e == NULL) {
         error("OOM");
         return;
@@ -328,6 +329,6 @@ symbol_t *pop_item(stack_t *stack) {
 }
 
 void free_table(Table *t) {
-    free(t->items);
-    free(t);
+    _free(t->items);
+    _free(t);
 }

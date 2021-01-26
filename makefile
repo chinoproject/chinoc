@@ -1,6 +1,6 @@
-objects =  main.o parse.o lex.o symbol.o ast.o gen_ir.o
+objects =  main.o parse.o lex.o symbol.o ast.o gen_ir.o gc.o
 CFLAGS = -lfl -lxxhash -g3 -gdwarf-2 -ggdb3 -O0
-CC = gcc
+CC = clang
 cc: $(objects)
 	$(CC) $(objects) $(CFLAGS) -o cc
 
@@ -17,5 +17,7 @@ ast.o:ast.c
 	$(CC) -c ast.c $(CFLAGS) -o ast.o
 gen_ir.o:gen_ir.c
 	$(CC) -c gen_ir.c $(CFLAGS) -o gen_ir.o
+gc.o:gc.c
+	$(CC) -c gc.c $(CFLAGS) -o gc.o
 clean:
 	rm *.o lex.c cc

@@ -5,23 +5,26 @@
 #include "ast.h"
 #include "token.h"
 #include "symbol.h"
+#include "gc.h"
+#include "error.h"
 Statement *newStatement(size_t n) {
-    Statement *s = malloc(sizeof(Statement));
+    Statement *s = _malloc(sizeof(Statement));
     if (NULL == s) {
         error("OOM");
         exit(1);
     }
     s->ast_len = n;
     s->astcount = 0;
-    s->ast = malloc(sizeof(AST) * n);
+    s->ast = _malloc(sizeof(AST) * n);
     if (s->ast == NULL) {
         error("OOM");
-        free(s);
+        _free(s);
     }
+    addObject(&gc_statement,s);
     return s;
 }
 void expand_statement(Statement *body) {
-    AST **ast = malloc(sizeof(AST *) * (body->ast_len * 2));
+    AST **ast = _malloc(sizeof(AST *) * (body->ast_len * 2));
     if (NULL == ast) {
         error("OOM");
         return;
@@ -41,7 +44,7 @@ void add_ast(Statement *body,AST *ast) {
 AST *newAST(int type,int left_type,int right_type,AST *left_ast,AST *right_ast, \
             symbol_t *left_symbol, symbol_t *right_symbol,int op,AST *cond,AST *else_body, \
             AST *next,Statement *body) {
-    AST *ast = malloc(sizeof(AST));
+    AST *ast = _malloc(sizeof(AST));
     if (NULL == ast) {
         error("OOM");
         exit(1);
@@ -65,6 +68,7 @@ AST *newAST(int type,int left_type,int right_type,AST *left_ast,AST *right_ast, 
         ast->right_ast = right_ast;
     else if (right_type == ISSYMBOL)
         ast->right_symbol = right_symbol;
+    addObject(&gc_ast,ast);
     return ast;
 }
 AST *newVar(int op,symbol_t *t) {
@@ -104,9 +108,8 @@ AST *newArrayIndex(int left_type,int right_type,symbol_t *left_symbol,symbol_t *
 void freeStatement(Statement *ptr) {
     if(ptr == NULL)
         return;
-    for(size_t n = 0; n < ptr->ast_len;n++)
-        freeAST(ptr->ast[n]);
-    free(ptr);
+    _free(ptr->ast);
+    _free(ptr);
 }
 AST *newSwitch(AST *cond,Statement *body) {
     return newAST(SWITCH,NONE,NONE,NULL,NULL,NULL,NULL,0,cond,NULL,NULL,body);
@@ -114,13 +117,5 @@ AST *newSwitch(AST *cond,Statement *body) {
 void freeAST(AST *ptr) {
     if(ptr == NULL)
         return;
-    
-    if (ptr->left_type == ISAST)
-        freeAST(ptr->left_ast);
-    if (ptr->right_type == ISAST)
-        freeAST(ptr->right_ast);
-    freeAST(ptr->cond);
-    freeAST(ptr->else_body);
-    freeStatement(ptr->body);
-    free(ptr);
+    _free(ptr);
 }

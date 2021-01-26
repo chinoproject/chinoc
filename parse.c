@@ -3,6 +3,7 @@
 #include "symbol.h"
 #include "ast.h"
 #include "gen_ir.h"
+#include "error.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -217,6 +218,7 @@ void parameter_list(symbol_t *s) {
             s->next = item;
         }
     }
+    free_stack(stack);
     get_token();
 }
 void skip(int i) {
@@ -274,7 +276,7 @@ void direct_declarator(symbol_t *t) {
         }
         get_token();
     } else
-        if ((t->type.t & T_MASK) != 0 && (t->type.t & T_MASK != T_VOID))
+        if ((t->type.t & T_MASK) != 0 && ((t->type.t & T_MASK) != T_VOID))
             error("error!");
     direct_declarator_postfix(t);
 }
@@ -923,7 +925,7 @@ AST *continue_statement(void) {
 void parse_unit(void) {
     token = YYEMPTY;
     while(token != YYEOF) {
-        gen_ir(compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH));
+        free_hir(gen_ir(compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH)));
     }
     if (unknown_table->entrycount != 0)
         error("存在未定义的变量\n");

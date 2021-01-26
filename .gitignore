@@ -54,3 +54,5 @@ dkms.conf
 a.c
 test*.*
 a.py
+lex.c
+cc

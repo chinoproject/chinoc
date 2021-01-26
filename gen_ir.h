@@ -17,6 +17,7 @@ char *__gen_switch_ir(AST *ast,int indentation);
 char *__gen_block_ir(AST *ast,int indentation);
 char *__gen_func_ir(AST *ast,int indentation);
 char *__gen_var_ir(AST *ast,int indentation);
+void free_hir(HIR *hir);
 #define get_indent(f,indent) {  \
     char *t = repeat_str("    ",indent);  \
     fprintf(f,t);   \

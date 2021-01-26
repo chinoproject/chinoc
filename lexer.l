@@ -3,6 +3,7 @@
     #include <stdlib.h>
     #include <string.h>
     #include "token.h"
+    #include "gc.h"
 %}
 delim   [ \t]
 ws      {delim}+
@@ -115,14 +116,14 @@ case        {return CASE;}
 %%
 
 struct metadata_struct *set_content(int type) {
-    struct metadata_struct *id = malloc(sizeof(struct metadata_struct));
+    struct metadata_struct *id = _malloc(sizeof(struct metadata_struct));
     if (id == NULL) {
         printf("OOM\n");
         exit(1);
     }
     size_t len = strlen(yytext);
     id->type = type;
-    id->content = malloc(sizeof(char)*(len + 1));
+    id->content = _malloc(sizeof(char)*(len + 1));
     if (id->content == NULL) {
         printf("OOM");
         free(id);
