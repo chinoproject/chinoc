@@ -131,6 +131,7 @@ void free_symbol(symbol_t *s) {
         return;
     if (s->value != NULL)
         free_value(s->value);
+    free_pointer(s->p);
     _free(s->name);
     _free(s);
 }
@@ -331,4 +332,18 @@ symbol_t *pop_item(stack_t *stack) {
 void free_table(Table *t) {
     _free(t->items);
     _free(t);
+}
+
+pointer_t *new_pointer(void) {
+    pointer_t *p = _malloc(sizeof(pointer_t));
+    if (p == NULL)
+        return NULL;
+    memset(p,0,sizeof(pointer_t));
+    return p;
+}
+void free_pointer(pointer_t *ptr) {
+    if (ptr == NULL)
+        return;
+    free_pointer(ptr->next);
+    _free(ptr);
 }

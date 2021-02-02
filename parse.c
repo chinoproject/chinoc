@@ -4,6 +4,7 @@
 #include "ast.h"
 #include "gen_ir.h"
 #include "error.h"
+#include "gc.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -226,7 +227,7 @@ void skip(int i) {
         error("\nerror\n");
     get_token();
 }
-void direct_declarator_postfix(symbol_t *t) {
+void direct_declarator_postfix(symbol_t *t,pointer_t *p) {
     if(token == LP){
         parameter_list(t);
     } else if (token == LB) {
@@ -237,28 +238,17 @@ void direct_declarator_postfix(symbol_t *t) {
             value = metadata_ptr->content;
         }
         skip(RB);
-        fflush(stdout);
-        direct_declarator_postfix(t);
-        t->pointer_level++;
-        symbol_t *s = new_symbol();
-        s->value = new_value();
-        s->value->ptr = value;
-        s->value->len = strlen(value);
-
-        s->type.t = T_ARRAY | T_POINTER;
-        s->status  = ANOM;
-
-        if (t->type.ref != NULL) {
-            s->type.t |= t->type.ref->type.t;
-            s->type.ref = t->type.ref;
-        } else {
-            s->type.t |= t->type.t;
-        }
-        t->type.ref = s;
-        t->type.t |= T_ARRAY | T_POINTER;
+        t->type.t |= T_POINTER | T_ARRAY;
+        p->array[p->dim] = atoi(value);
+        p->dim++;
+        t->total++;
+        direct_declarator_postfix(t,p);
     }
 }
-void direct_declarator(symbol_t *t) {
+void direct_declarator(symbol_t *t,int lp_count) {
+    symbol_t *temp = t;
+    int total = t->total;
+    int raw_lp_count = lp_count;
     if (token == ID) {
         t->name = metadata_ptr->content;
         if (t->type.t != 0) {
@@ -278,23 +268,37 @@ void direct_declarator(symbol_t *t) {
     } else
         if ((t->type.t & T_MASK) != 0 && ((t->type.t & T_MASK) != T_VOID))
             error("error!");
-    direct_declarator_postfix(t);
+    pointer_t *p = t->p;
+    do {
+        direct_declarator_postfix(t,p);
+        if (lp_count != 0) {
+            skip(RP);
+            lp_count--;
+            p = p->next;
+        }
+    } while(lp_count != 0);
+    if (token == LB)
+        direct_declarator_postfix(temp,p);
 }
 void declaration(symbol_t *t) {
-    //it's bug
+    int lp_count = 0;
+    pointer_t *p = new_pointer();
     while(token == STAR || token == LP) {
         if (token == LP) {
             get_token();
+            pointer_t *temp = new_pointer();
+            lp_count++;
+            temp->next = p;
+            p = temp;
             continue;
         }
-        fflush(stdout);
-        t->type.t |= T_POINTER;
-        t->pointer_level++;
+        p->pointer++;
+        t->total++;
         get_token();
+        t->type.t |= T_POINTER;
     }
-    direct_declarator(t);
-    printf("\n");
-    fflush(stdout);
+    t->p = p;
+    direct_declarator(t,lp_count);
 }
 // 生成函数体的AST
 AST *funcbody(void) {
@@ -328,7 +332,6 @@ AST *external_declaration(int i) {
                 return NULL;
             }
             t->type.t |= T_FUNC;
-            //t->status = FUNC;
             ast = funcbody();
             ast->left_symbol = t;
             ast->left_type = ISSYMBOL;
@@ -590,8 +593,8 @@ AST *unary_expression(symbol_t *t) {
             if(flag) {
                 if ((ast->left_symbol->type.t & T_POINTER) == T_POINTER) {
                     if (temp == STAR) {
-                        if ((ast->left_symbol->pointer_level - 1) >= 0)
-                            ast->pointer_level = ast->left_symbol->pointer_level - 1;
+                        if ((ast->left_symbol->total - 1) >= 0)
+                            ast->pointer_level = ast->left_symbol->total - 1;
                         else
                             error("对非指针变量使用*");
                     } else

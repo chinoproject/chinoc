@@ -196,15 +196,20 @@ char *__gen_var_ir(AST *ast,int indentation) {
     get_indent(f,indentation);
     __gen_type_ir(f,ast->left_symbol);
 
-    //it's bug
-    if (ast->left_symbol->type.t & T_ARRAY)
-        for(symbol_t *t = ast->left_symbol->type.ref; t != NULL;t = t->type.ref)
-            fprintf(f,"[%s]",t->value->ptr);
-    else {
-        char *x = repeat_str("*",ast->left_symbol->pointer_level);
-        fprintf(f,x);
-        _free(x);
+    if (ast->left_symbol->type.t & T_POINTER) {
+        for(pointer_t *p = ast->left_symbol->p;p != NULL;p = p->next) {
+            char *x = repeat_str("*",p->pointer);
+            fprintf(f,"%s ",x);
+            _free(x);
+            if (p->dim) {
+                for(int i = 0;i < p->dim;i++)
+                    fprintf(f,"[%d]",p->array[i]);
+                fprintf(f," ");
+            }
+
+        }
     }
+
     if (ast->left_symbol->type.t == SSTRUCT) {
         // 打印结构体
         fprintf(f,"struct %s {\n",ast->left_symbol->name);

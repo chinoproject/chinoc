@@ -35,9 +35,10 @@ typedef enum __storageclass {
 } StorageClass;
 extern StorageClass storageclass;
 typedef struct __symbol symbol_t;
+#define DIM 64
 typedef struct __type {
-     int t;
-     symbol_t *ref;
+    int t;
+    symbol_t *ref;
  } type_t;
 typedef struct __value {
     union {
@@ -50,11 +51,18 @@ typedef struct __value {
     size_t len;
     struct __value *next;           // 下一个值
 } value_t;
+typedef struct __pointer_struct {
+    size_t array[DIM];
+    int dim;
+    int pointer;
+    struct __pointer_struct *next;
+} pointer_t;
  typedef struct __symbol {
     type_t type;                    // 符号的类型       
     char *name;                     // 符号名
     size_t status;                  // 符号的状态
-    int pointer_level;              // 指针深度
+    pointer_t *p;                   // 保存指针深度和数组维度
+    size_t total;
     value_t *value;                 // 符号的值
     AST *ast;                       // 调用函数时，参数的表达式
     struct __symbol *next;          // 下一个结构体成员,匿名符号
@@ -85,7 +93,8 @@ void free_table(Table *t);
 symbol_t *search_item(Table *t,char *id);
 void insert_item(Table *t,symbol_t *s);
 void delete_item(Table *t, symbol_t *s);
-
+pointer_t *new_pointer(void);
+void free_pointer(pointer_t *ptr);
 void rehash_table(Table *t);
 type_t *new_type(int type);
 symbol_t *new_symbol(void);
