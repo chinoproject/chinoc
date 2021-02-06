@@ -25,7 +25,7 @@ string      \"({ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U})*\"
 number      (((\.{digit}+)|({digit}+\.{digit}*)))(([e][+-]?{digit}+)?)
 multi_notes     \/\*({ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U})*\*\/
 single_notes    \/\/({ASCN}|{U2}{U}|{U3}{U}{U}|{U4}{U}{U}{U})*
-header      [<][a-zA-Z0-9.]+[>]
+header      [<][a-zA-Z0-9.-_]+[>]
 %%
 {multi_notes}       {/*skip*/}
 {single_notes}      {/*skip*/}

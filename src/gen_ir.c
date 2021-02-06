@@ -220,10 +220,18 @@ char *__gen_var_ir(AST *ast,int indentation) {
         }
         get_indent(f,indentation);
         fprintf(f,"};\n");
-    } else {
-        fprintf(f,ast->left_symbol->name);
-        fprintf(f,";\n");
+    } else 
+        fprintf(f," %s",ast->left_symbol->name);
+    if ((ast->left_symbol->type.t & T_FUNC) == T_FUNC) {
+        fprintf(f,"(");
+        for (symbol_t *t = ast->left_symbol->next; t != NULL;t = t->next) {
+            __gen_type_ir(f,t);
+            if (t->name != NULL)
+                fprintf(f,t->name);
+        }
+        fprintf(f,")");
     }
+    fprintf(f,";");
     return __gen_string(f);
 }
 char *__gen_switch_ir(AST *ast,int indentation) {

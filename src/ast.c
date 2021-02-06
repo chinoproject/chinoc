@@ -9,26 +9,17 @@
 #include "error.h"
 Statement *newStatement(size_t n) {
     Statement *s = _malloc(sizeof(Statement));
-    if (NULL == s) {
-        error("OOM");
-        exit(1);
-    }
+    check_ptr(s);
     s->ast_len = n;
     s->astcount = 0;
     s->ast = _malloc(sizeof(AST) * n);
-    if (s->ast == NULL) {
-        error("OOM");
-        _free(s);
-    }
+    check_ptr(s->ast);
     addObject(&gc_statement,s);
     return s;
 }
 void expand_statement(Statement *body) {
     AST **ast = _malloc(sizeof(AST *) * (body->ast_len * 2));
-    if (NULL == ast) {
-        error("OOM");
-        return;
-    }
+    check_ptr(ast);
     memcpy(ast,body->ast,sizeof(AST *) * body->ast_len);
     memset(ast + body->ast_len,0,sizeof(AST *) * body->ast_len);
     body->ast = ast;
@@ -45,10 +36,7 @@ AST *newAST(int type,int left_type,int right_type,AST *left_ast,AST *right_ast, 
             symbol_t *left_symbol, symbol_t *right_symbol,int op,AST *cond,AST *else_body, \
             AST *next,Statement *body) {
     AST *ast = _malloc(sizeof(AST));
-    if (NULL == ast) {
-        error("OOM");
-        exit(1);
-    }
+    check_ptr(ast);
     memset(ast,0,sizeof(AST));
     ast->type = type;
     ast->op = op;

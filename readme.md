@@ -6,6 +6,7 @@
 * flex库存在内存泄露
 ### 以下是feature
 * 将C代码转换为HIR(High IR)
+* 初步的include支持
 
 ### 编译时注意事项
 * 请在Linux环境下编译

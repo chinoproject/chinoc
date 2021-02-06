@@ -83,7 +83,7 @@ typedef struct __stack {
     symbol_t **stack;
     size_t top;
     size_t len;
-} stack_t;
+} cc_stack_t;
 #define is_var(ast) ((ast)->left_ast != NULL && (ast)->right_ast == NULL && (ast)->left_type == ISSYMBOL && (ast)->type == ID && (ast)->op == 0)
 #define is_var2(ast) ((ast)->left_ast != NULL && (ast)->right_ast == NULL && (ast)->left_type == ISSYMBOL && (ast)->type == ID && (ast)->op == 0)
 
@@ -107,8 +107,8 @@ symbol_t *struct_search(Table *table,const char *name);
 symbol_t *member_search(symbol_t *s,const char *name);
 symbol_t *search_var(Table *table,const char *name);
 void print_symbol_info(symbol_t *t);
-stack_t *new_stack(size_t len);
-void free_stack(stack_t *ptr);
-void push_item(stack_t *stack,symbol_t *item);
-symbol_t *pop_item(stack_t *stack);
+cc_stack_t *new_stack(size_t len);
+void free_stack(cc_stack_t *ptr);
+void push_item(cc_stack_t *stack,symbol_t *item);
+symbol_t *pop_item(cc_stack_t *stack);
 #endif

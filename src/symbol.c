@@ -46,7 +46,7 @@ symbol_t *search_var(Table *table,const char *name) {
     symbol_t *temp = table->items[hash];
     if (temp == NULL)
         return NULL;
-    if (strcmp(name,temp->name) == 0 && (temp->type.t & T_MASK))
+    if (!strcmp(name,temp->name))
         return temp;
     for(symbol_t *i = temp->hash_next; i != temp;i = i->hash_next) {
         if(strcmp(name,i->name) == 0)
@@ -170,10 +170,7 @@ symbol_t *member_search(symbol_t *s,const char *name) {
 
 value_t *new_value(void) {
     value_t *v = _malloc(sizeof(value_t));
-    if(v == NULL) {
-        error("OOM");
-        return NULL;
-    }
+    check_ptr(v);
     memset(v,0,sizeof(value_t));
     return v;
 }
@@ -280,46 +277,36 @@ void print_symbol_info(symbol_t *t) {
     fflush(stdout);
 }
 
-stack_t *new_stack(size_t len) {
-    stack_t *s = _malloc(sizeof(stack_t));
-    if  (s == NULL) {
-        error("OOM");
-        return NULL;
-    }
+cc_stack_t *new_stack(size_t len) {
+    cc_stack_t *s = _malloc(sizeof(cc_stack_t));
+    check_ptr(s);
     s->stack = _malloc(sizeof(symbol_t *) * default_stack_len);
-    if (s->stack == NULL) {
-        error("OOM");
-        _free(s);
-        return NULL;
-    }
+    check_ptr(s->stack);
     s->len = default_stack_len;
     s->top = 0;
     return s;
 }
 
-void free_stack(stack_t *ptr) {
+void free_stack(cc_stack_t *ptr) {
     _free(ptr->stack);
     _free(ptr);
 }
-void expand_stack(stack_t *stack) {
-    symbol_t **e = _malloc(sizeof(stack_t *) * (stack->len * 2));
-    if (e == NULL) {
-        error("OOM");
-        return;
-    }
+void expand_stack(cc_stack_t *stack) {
+    symbol_t **e = _malloc(sizeof(cc_stack_t *) * (stack->len * 2));
+    check_ptr(e);
     symbol_t **temp = stack->stack;
     stack->stack = e;
     for(size_t n = 0;n < stack->len;n++)
         push_item(stack,temp[n]);
 }
-void push_item(stack_t *stack,symbol_t *item) {
+void push_item(cc_stack_t *stack,symbol_t *item) {
     if (stack->top == stack->len)
         expand_stack(stack);
     stack->stack[stack->top] = item;
     stack->top++;
 }
 
-symbol_t *pop_item(stack_t *stack) {
+symbol_t *pop_item(cc_stack_t *stack) {
     if (stack->top == 0) {
         error("stack overflow!");
         return NULL;

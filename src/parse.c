@@ -8,12 +8,22 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#define FIFO "cc_stdout_fifo"
 int token;
 int back_token[4];
 int tindex;
 extern int yylex(void);
+extern FILE *yyin;
 struct metadata_struct *metadata_ptr;
 Table *local_table;
+char **header;
+size_t header_len;
+size_t header_count;
 symbol_t *is_basic_type(void);
 void get_token(void) {
     token = yylex();
@@ -190,7 +200,7 @@ void parameter_list(symbol_t *s) {
     if (s->type.t != 0)
         s->type.t |= T_FUNC;
     symbol_t *t;
-    stack_t *stack = new_stack(default_stack_len);
+    cc_stack_t *stack = new_stack(default_stack_len);
     size_t n = 0;
     while (token != RP) {
         t = is_basic_type();
@@ -301,17 +311,17 @@ void declaration(symbol_t *t) {
     direct_declarator(t,lp_count);
 }
 // 生成函数体的AST
-AST *funcbody(void) {
+AST *funcbody(header_t *header) {
     local_table = alloc_table();
     init_table(local_table,default_symbol_len);
-    AST *ast = compound_statement(C_LOCAL,NO_LOOP_OR_SWTICH);
+    AST *ast = compound_statement(C_LOCAL,NO_LOOP_OR_SWTICH,header);
     free_table(local_table);
     local_table = NULL;
     return ast;
 }
 
 //生成声明或定义的AST
-AST *external_declaration(int i) {
+AST *external_declaration(int i,header_t *header) {
     symbol_t *t = is_basic_type();
     AST *ast = NULL;
     if (token == SEM) {
@@ -332,7 +342,7 @@ AST *external_declaration(int i) {
                 return NULL;
             }
             t->type.t |= T_FUNC;
-            ast = funcbody();
+            ast = funcbody(header);
             ast->left_symbol = t;
             ast->left_type = ISSYMBOL;
             ast->type = FUNC;
@@ -372,20 +382,20 @@ AST *expression_statement(void) {
     skip(SEM);
     return ast;
 }
-AST *statement(int v,int flag) {
+AST *statement(int v,int flag,header_t *header) {
     AST *ast = NULL;
     if (token == LBB)
-        return compound_statement(v,flag);
+        return compound_statement(v,flag,header);
     if (v == C_LOCAL) {
         switch(token) {
             case IF:
-                ast = if_statement(v,flag);
+                ast = if_statement(v,flag,header);
                 break;
             case FOR:
-                ast = for_statement(v);
+                ast = for_statement(v,header);
                 break;
             case SWITCH:
-                ast = switch_statement(v);
+                ast = switch_statement(v,header);
                 break;
             case BREAK:
                 if (flag != LOOP_OR_SWITCH)
@@ -393,7 +403,7 @@ AST *statement(int v,int flag) {
                 ast = break_statement();
                 break;
             case WHILE:
-                ast = while_statement(v);
+                ast = while_statement(v,header);
                 break;
             case CONTINUE:
                 if (flag != LOOP_OR_SWITCH)
@@ -401,7 +411,7 @@ AST *statement(int v,int flag) {
                 ast = continue_statement();
                 break;
             case DO:
-                ast = do_statement(v);
+                ast = do_statement(v,header);
             case YYEOF:
                 break;
             default:
@@ -425,28 +435,37 @@ int is_type_specifier(void) {
         case ID:    //it's test
         case UNION:
         case ENUM:
+        case VOID:
             return 1;
         default:
             return 0;
     }
 }
 
-AST *compound_statement(int v,int flag) {
+AST *compound_statement(int v,int flag,header_t *header) {
     get_token();
     Statement *s = newStatement(default_body_len);
     while (token == INCLUDE || token == DEFINE) {
+        int t = token;
         get_token();
-        printf("%s",metadata_ptr->content);
+        if (t == INCLUDE) {
+            char *v = metadata_ptr->content;
+            v[strlen(v) - 1] = 0;
+            header->header[header->header_count] = v;
+            header->header_count++;
+            check_header(header);
+        }
+        get_token();
     }
     AST *temp;
     while (is_type_specifier()) {
-        temp = external_declaration(v);
+        temp = external_declaration(v,header);
         if (!temp)
             continue;
         add_ast(s,temp);
     }
     while (token != RBB && token != YYEOF) {
-        temp = statement(v,flag);
+        temp = statement(v,flag,header);
         add_ast(s,temp);
     }
     get_token();
@@ -833,20 +852,20 @@ AST *expression(void) {
 AST *initiallizer(symbol_t *t) {
     return assignment_expression(t);
 }
-AST *if_statement(int v,int flag) {
+AST *if_statement(int v,int flag,header_t *header) {
     AST *ast,*cond,*body,*else_body;
     get_token();
     skip(LP);
     cond = expression();
     skip(RP);
-    body = statement(v,flag);
+    body = statement(v,flag,header);
     if(token == ELSE) {
         get_token();
-        else_body = statement(v,flag);
+        else_body = statement(v,flag,header);
     }
     return newIf(cond,body->body,else_body);
 }
-AST *for_statement(int v) {
+AST *for_statement(int v,header_t *header) {
     AST *init,*cond,*cond2;
     AST *body;
     get_token();
@@ -858,14 +877,14 @@ AST *for_statement(int v) {
 
     cond2 = expression();
     skip(RP);
-    body = statement(v,LOOP_OR_SWITCH);
+    body = statement(v,LOOP_OR_SWITCH,header);
     body->body->ast[body->body->astcount] = cond2;
     body->body->astcount++;
     body->body->ast[body->body->astcount] = cond;
     body->body->astcount++;
     return newFor(init,NULL,body->body);
 }
-AST *switch_statement(int v) {
+AST *switch_statement(int v,header_t *header) {
     AST *cond;
     Statement *body = newStatement(default_body_len);
     AST *ast;
@@ -882,7 +901,7 @@ AST *switch_statement(int v) {
             if (check_var(case_cond))
                 error("case语句不能存在变量");
             skip(COLON);
-            Statement *case_statement = statement(v,LOOP_OR_SWITCH)->body;
+            Statement *case_statement = statement(v,LOOP_OR_SWITCH,header)->body;
             AST *case_body = newAST(CASE,NONE,NONE,NULL,NULL,NULL,NULL,0,case_cond, \
                                     NULL,NULL,case_statement);
             add_ast(body,case_body);
@@ -890,7 +909,7 @@ AST *switch_statement(int v) {
             get_token();
             skip(COLON);
             AST *default_body;
-            Statement *default_statement = statement(v,LOOP_OR_SWITCH)->body;
+            Statement *default_statement = statement(v,LOOP_OR_SWITCH,header)->body;
             default_body = newAST(DEFAULT,NONE,NONE,NULL,NULL,NULL,NULL,0,NULL,NULL, \
                                 NULL,default_statement);
             add_ast(body,default_body);
@@ -899,12 +918,12 @@ AST *switch_statement(int v) {
     ast = newSwitch(cond,body);
     return ast;
 }
-AST *do_statement(int v) {
+AST *do_statement(int v,header_t *header) {
     Statement *s;
     AST *exp;
     AST *ast;
     skip(DO);
-    s = statement(v,LOOP_OR_SWITCH)->body;
+    s = statement(v,LOOP_OR_SWITCH,header)->body;
     skip(WHILE);
     skip(LP);
     exp = expression();
@@ -925,21 +944,36 @@ AST *continue_statement(void) {
     skip(SEM);
     return newContinue();
 }
-void parse_unit(void) {
-    token = YYEMPTY;
-    while(token != YYEOF) {
-        free_hir(gen_ir(compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH)));
+void parse_header(header_t *header) {
+    header_t *h = newHeader();
+    for(size_t n = 0;n < header->header_count;n++) {
+        yyin = fopen(header->header[n] + 1,"r");
+        token = YYEMPTY;
+        AST *ast;
+        while (token != YYEOF)
+            ast = compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH,h);
+        parse_header(h);
+        gen_ir(ast);
+        printf("\n");
     }
+}
+void parse_unit(header_t *header) {
+    token = YYEMPTY;
+    AST *ast;
+    while(token != YYEOF)
+        ast = compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH,header);
+    parse_header(header);
+    gen_ir(ast);
     if (unknown_table->entrycount != 0)
         error("存在未定义的变量\n");
 }
-AST *while_statement(int v) {
+AST *while_statement(int v,header_t *header) {
     AST *cond,*body;
     get_token();
     skip(LP);
     cond = expression();
     skip(RP);
-    body = statement(v,LOOP_OR_SWITCH);
+    body = statement(v,LOOP_OR_SWITCH,header);
     return newWhile(cond,body->body);
 }
 
@@ -955,4 +989,26 @@ int check_var(AST *ast) {
             || (ast->right_type == ISAST ?  \
             check_var(ast->right_ast) : \
             (ast->right_symbol != NULL && ast->right_symbol->name != NULL));
+}
+
+header_t *newHeader(void) {
+    header_t *p = _malloc(sizeof(header_t));
+    check_ptr(p);
+    p->header = _malloc(sizeof(char *) * DEFAULT_HEADER_NUM);
+    memset(p->header,0,sizeof(char *) * DEFAULT_HEADER_NUM);
+    p->header_count = 0;
+    p->header_len = 0;
+    return p;
+}
+
+void freeHeader(header_t *p) {
+    for(size_t n = 0;n < p->header_count;n++)
+        _free(p->header[n]);
+    _free(p->header);
+    _free(p);
+}
+
+void check_header(header_t *p) {
+    if (p->header_len == p->header_count)
+        p->header = realloc(p->header,sizeof(char *)*p->header_len*2);
 }
