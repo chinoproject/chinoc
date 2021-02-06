@@ -4,8 +4,9 @@
 #define info(s)     {printf(s); fflush(stdout);}
 #define check_ptr(s) \
 {   \
-    if (NULL == (s)) \
+    if (NULL == (s)){ \
         error("OOM");   \
-    exit(1);    \
+        exit(1);    \
+    }   \
 }
 #endif
