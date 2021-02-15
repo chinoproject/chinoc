@@ -17,7 +17,8 @@ typedef enum __typecode {
     T_CONST = 1 << 5,
     T_ARRAY = 1 << 6,
     T_POINTER = 1 << 7,
-    T_NONE = 1 << 8
+    T_NONE = 1 << 8,
+    T_ENUM = 1 << 9
 } TypeCode;
 extern TypeCode typecode;
 typedef enum __storageclass {
@@ -31,7 +32,8 @@ typedef enum __storageclass {
     MEMBER = 0x40000000,    //结构体成员
     PARAM = 0x80000000,     //函数参数
     UNKNOWN = 0x160000000,
-    SUNION = 0x320000000
+    SUNION = 0x320000000,
+    SENUM = 0x640000000
 } StorageClass;
 extern StorageClass storageclass;
 typedef struct __symbol symbol_t;
@@ -73,7 +75,7 @@ typedef struct __table {
     symbol_t **items;
     size_t len;          //items长度
     size_t entrycount;  //items数量
-} Table;
+} __attribute__((aligned (4))) Table;
 extern Table *global_table;      //全局符号表
 extern Table *unknown_table;     //未定义类型符号表
 extern Table *local_table;       //局部符号表

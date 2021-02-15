@@ -112,33 +112,52 @@ symbol_t *union_specifier(void) {
         union_declaration_list(s);
     return s;
 }
-void enum_declaration(void) {
-    while(token != RBB) {
+void enum_declaration(symbol_t *t) {
+    symbol_t *elem = NULL;
+    int n = 0;
+    while(1) {
+        elem = new_symbol();
+        elem->name = metadata_ptr->content;
+        elem->status = MEMBER;
+        elem->next = t->next;
+        t->next = elem;
         get_token();
         if (token == ASSIGN) {
             get_token();
-            expression();
-        } else if (token != RBB)
+            n = atoi(metadata_ptr->content);
+            get_token();
+        }
+        elem->value = new_value();
+        elem->value->len = sizeof(int);
+        elem->value->i = n;
+        n++;
+        if (token == RBB)
+            break;
+        else
             skip(COMMA);
     }
 }
-void enum_declaration_list(void) {
-    get_token();
-    while(token != RBB)
-        enum_declaration();
-}
-void enum_specifier(void) {
+/*void enum_declaration_list(symbol_t *symbol) {
+    enum_declaration(symbol);
+    return t;
+}*/
+symbol_t *enum_specifier(void) {
     get_token();
     if (token != ID)
         error("关键字不能作为enum的关键字");
+    symbol_t *symbol = new_symbol();
+    symbol->name = metadata_ptr->content;
+    symbol->type.t = T_ENUM;
     get_token();
-    if(token == LBB)
-        enum_declaration_list();
+    if(token == LBB) {
+        get_token();
+        enum_declaration(symbol);
+    }
     skip(RBB);
+    return symbol;
 }
 symbol_t *is_basic_type(void) {
     int is_basic = 0;
-    //var_type_t *t = NULL;
     symbol_t *s = NULL;
     switch(token) {
         case INT:
@@ -168,7 +187,7 @@ symbol_t *is_basic_type(void) {
             s = union_specifier();
             break;
         case ENUM:
-            enum_specifier();
+            s = enum_specifier();
             break;
         case YYEOF:
             break;

@@ -43,9 +43,8 @@ symbol_t *struct_specifier(void);
 symbol_t *union_specifier(void);
 symbol_t *is_basic_type(void);
 
-void enum_declaration(void);
-void enum_declaration_list(void);
-void enum_specifier(void);
+void enum_declaration(symbol_t *t);
+symbol_t *enum_specifier(void);
 void parameter_list(symbol_t *s);
 void skip(int i);
 void direct_declarator_posfix(symbol_t *t,pointer_t *p);

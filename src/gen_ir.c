@@ -42,6 +42,8 @@ HIR *gen_ir(AST *ast) {
                 ir->ir[n] = __gen_var_ir(ast->body->ast[n],0);
                 printf(ir->ir[n]);
                 break;
+            /*case ENUM:
+                ir->ir[n] == __gen_enum_ir(ast->body->ast[n],0);*/
             default:
                 ir->ir[n] = __gen_expression_ir(ast->body->ast[n]);
                 size_t len = strlen(ir->ir[n]);
@@ -220,7 +222,9 @@ char *__gen_var_ir(AST *ast,int indentation) {
         }
         get_indent(f,indentation);
         fprintf(f,"};\n");
-    } else 
+    } else if (ast->left_symbol->type.t == T_ENUM)
+        fprintf(f,"%s",__gen_enum_ir(ast,indentation));
+    else
         fprintf(f," %s",ast->left_symbol->name);
     if ((ast->left_symbol->type.t & T_FUNC) == T_FUNC) {
         fprintf(f,"(");
@@ -456,4 +460,18 @@ void free_hir(HIR *hir) {
         _free(hir->ir[i]);
     _free(hir->ir);
     _free(hir);
+}
+
+char * __gen_enum_ir(AST *ast,int indentation) {
+    FILE *f = tmpfile();
+    fprintf(f,"enum ");
+    symbol_t *s = ast->left_symbol;
+    fprintf(f,"%s {\n",s->name);
+    for(symbol_t *next = s->next;next != NULL;next = next->next) {
+        get_indent(f,indentation + 1);
+        fprintf(f,"%s %d,\n",next->name,next->value->i);
+    }
+    get_indent(f,indentation);
+    fprintf(f,"}");
+    return __gen_string(f);
 }
