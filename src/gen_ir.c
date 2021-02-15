@@ -221,7 +221,16 @@ char *__gen_var_ir(AST *ast,int indentation) {
             fprintf(f,"%s;\n",s->name);
         }
         get_indent(f,indentation);
-        fprintf(f,"};\n");
+        fprintf(f,"}");
+    } else if (ast->left_symbol->type.t = SUNION) {
+        fprintf(f,"union %s {\n",ast->left_symbol->name);
+        for(symbol_t *s = ast->left_symbol->next;s != NULL;s = s->next) {
+            get_indent(f,indentation + 1);
+            __gen_type_ir(f,s);
+            fprintf(f,"%s;\n",s->name);
+        }
+        get_indent(f,indentation);
+        fprintf(f,"}");
     } else if (ast->left_symbol->type.t == T_ENUM)
         fprintf(f,"%s",__gen_enum_ir(ast,indentation));
     else

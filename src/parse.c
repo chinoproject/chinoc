@@ -104,7 +104,7 @@ symbol_t *union_specifier(void) {
         s = new_symbol();
         s->status = -1;     //之前未定义变量
     }
-    s->type.t = SSTRUCT;
+    s->type.t = SUNION;
     s->name = metadata_ptr->content;
     insert_item(global_table,s);
     get_token();
@@ -137,10 +137,7 @@ void enum_declaration(symbol_t *t) {
             skip(COMMA);
     }
 }
-/*void enum_declaration_list(symbol_t *symbol) {
-    enum_declaration(symbol);
-    return t;
-}*/
+
 symbol_t *enum_specifier(void) {
     get_token();
     if (token != ID)

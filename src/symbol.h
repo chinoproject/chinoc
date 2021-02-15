@@ -39,7 +39,7 @@ extern StorageClass storageclass;
 typedef struct __symbol symbol_t;
 #define DIM 64
 typedef struct __type {
-    int t;
+    size_t t;
     symbol_t *ref;
  } type_t;
 typedef struct __value {
