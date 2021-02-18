@@ -470,6 +470,32 @@ AST *compound_statement(int v,int flag,header_t *header) {
             header->header[header->header_count] = v;
             header->header_count++;
             check_header(header);
+        } else if (t == DEFINE) {
+            symbol_t *s = search_var(global_table,metadata_ptr->content);
+            if (s == NULL) {
+                s = search_var(unknown_table,metadata_ptr->content);
+                if (s == NULL)
+                    s = new_symbol();
+            }
+            s->name = metadata_ptr->content;
+            insert_item(global_table,s);
+
+            symbol_t *u = search_var(unknown_table,metadata_ptr->content);
+            if (u != NULL)
+                delete_item(unknown_table,s);
+            get_token();
+            s->status = SDEFINE;
+            switch(token) {
+                case ID:
+                    s->next = new_symbol();
+                    s->next->name = metadata_ptr->content;
+                    break;
+                default:
+                    s->value = new_value();
+                    s->value->ptr = metadata_ptr->content;
+                    s->type.t = token;
+                    break;
+            }
         }
         get_token();
     }
@@ -532,6 +558,16 @@ AST *primary_expression(symbol_t *t) {
                     s = new_symbol();
                     s->name = metadata_ptr->content;
                     insert_item(unknown_table,s);
+                }
+                if (s->status == SDEFINE) {
+                    symbol_t *next;
+                    if (s->next != NULL)
+                        for(next = s->next;next->next != NULL;next = next->next);
+                    if (next != NULL) {
+                        s = search_var(local_table,metadata_ptr->content);
+                        if (s == NULL)
+                            s = search_var(global_table,metadata_ptr->content);
+                    }
                 }
             ast = newVar(0,s);
             ast->type = token;

@@ -157,7 +157,7 @@ void __gen_type_ir(FILE *f,symbol_t *s) {
             fprintf(f,"i2 ");
             break;
         case T_VOID:
-            fprintf(f,"void");
+            fprintf(f,"void ");
             break;
         case T_STRUCT:
             fprintf(f,"struct %s ",s->type.ref->name);
@@ -173,6 +173,7 @@ char *__gen_func_ir(AST *ast,int indentation) {
             __gen_type_ir(f,s);
             if (s->name != NULL)
                 fprintf(f," %s",s->name);
+
             if (s->next != NULL)
                 fprintf(f,",");
         }
@@ -222,7 +223,7 @@ char *__gen_var_ir(AST *ast,int indentation) {
         }
         get_indent(f,indentation);
         fprintf(f,"}");
-    } else if (ast->left_symbol->type.t = SUNION) {
+    } else if (ast->left_symbol->type.t == SUNION) {
         fprintf(f,"union %s {\n",ast->left_symbol->name);
         for(symbol_t *s = ast->left_symbol->next;s != NULL;s = s->next) {
             get_indent(f,indentation + 1);
@@ -233,8 +234,12 @@ char *__gen_var_ir(AST *ast,int indentation) {
         fprintf(f,"}");
     } else if (ast->left_symbol->type.t == T_ENUM)
         fprintf(f,"%s",__gen_enum_ir(ast,indentation));
-    else
-        fprintf(f," %s",ast->left_symbol->name);
+    else {
+        if (ast->left_symbol->status == SDEFINE)
+            fprintf(f,"%s",ast->left_symbol->value->ptr);
+        else
+            fprintf(f," %s",ast->left_symbol->name);
+    }
     if ((ast->left_symbol->type.t & T_FUNC) == T_FUNC) {
         fprintf(f,"(");
         for (symbol_t *t = ast->left_symbol->next; t != NULL;t = t->next) {
@@ -349,7 +354,7 @@ char *__gen_expression_ir(AST *ast) {
                     break;
             }
         }
-        if (ast->left_symbol->name != NULL)
+        if (ast->left_symbol->name != NULL && (ast->left_symbol->status != SDEFINE))
             fprintf(buffer," %s ",ast->left_symbol->name);
         else if (ast->left_symbol->value != NULL)
             fprintf(buffer," %s ",(char *)ast->left_symbol->value->ptr);
@@ -363,7 +368,7 @@ char *__gen_expression_ir(AST *ast) {
         if (t != NULL)
             fprintf(buffer,t);
     } else if (ast->right_type == ISSYMBOL && ast->right_symbol != NULL) {
-        if (ast->right_symbol->name != NULL)
+        if (ast->right_symbol->name != NULL && (ast->right_symbol->status != SDEFINE))
             fprintf(buffer," %s ",ast->right_symbol->name);
         else if (ast->right_symbol->value != NULL)
             fprintf(buffer," %s ",ast->right_symbol->value->ptr);

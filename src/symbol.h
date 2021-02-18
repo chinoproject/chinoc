@@ -33,7 +33,8 @@ typedef enum __storageclass {
     PARAM = 0x80000000,     //函数参数
     UNKNOWN = 0x160000000,
     SUNION = 0x320000000,
-    SENUM = 0x640000000
+    SENUM = 0x640000000,
+    SDEFINE = 0x128000000
 } StorageClass;
 extern StorageClass storageclass;
 typedef struct __symbol symbol_t;
