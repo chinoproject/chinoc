@@ -6,7 +6,6 @@
 #define C_LOCAL     0
 #define LOOP_OR_SWITCH 1
 #define NO_LOOP_OR_SWTICH 0
-
 #define gen_op_ast(ast,right,token,func) { \
     if (is_var(ast) && is_var(right)) {   \
         if ((ast)->op != 0 && (right)->op == 0) \
@@ -86,4 +85,5 @@ void print_ast(AST *ast);
 void print_call(symbol_t *t);
 int check_var(AST *);
 void parse_header(header_t *header);
+AST *goto_statement(int v,header_t *header);
 #endif

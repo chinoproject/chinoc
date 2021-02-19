@@ -34,7 +34,8 @@ typedef enum __storageclass {
     UNKNOWN = 0x160000000,
     SUNION = 0x320000000,
     SENUM = 0x640000000,
-    SDEFINE = 0x128000000
+    SDEFINE = 0x128000000,
+    SLABEL = 0x256000000
 } StorageClass;
 extern StorageClass storageclass;
 typedef struct __symbol symbol_t;
@@ -114,4 +115,6 @@ cc_stack_t *new_stack(size_t len);
 void free_stack(cc_stack_t *ptr);
 void push_item(cc_stack_t *stack,symbol_t *item);
 symbol_t *pop_item(cc_stack_t *stack);
+symbol_t *search_label(const char *name);
+symbol_t *search_unknow_label(const char *name);
 #endif

@@ -42,6 +42,14 @@ HIR *gen_ir(AST *ast) {
                 ir->ir[n] = __gen_var_ir(ast->body->ast[n],0);
                 printf(ir->ir[n]);
                 break;
+            case LABEL:
+                ir->ir[n] = __gen_label_ir(ast->body->ast[n],0);
+                printf(ir->ir[n]);
+                break;
+            case GOTO:
+                ir->ir[n] = __gen_goto_ir(ast->body->ast[n],0);
+                printf(ir->ir[n]);
+                break;
             /*case ENUM:
                 ir->ir[n] == __gen_enum_ir(ast->body->ast[n],0);*/
             default:
@@ -122,7 +130,20 @@ void __gen_ir(FILE *f,AST *ast,int indentation) {
             fprintf(f,str);
             _free(str);
             break;
+        case LABEL:
+            str = __gen_label_ir(ast,0);
+            fprintf(f,str);
+            _free(str);
+            break;
+        case GOTO:
+            get_indent(f,indentation + 1);
+            str = __gen_goto_ir(ast,0);
+            fprintf(f,str);
+            _free(str);
+            break;
         default:
+            get_indent(f,indentation + 1);
+            __gen_type_ir(f,ast->left_symbol);
             str = __gen_expression_ir(ast);
             fprintf(f,str);
             fprintf(f,";\n");
@@ -249,7 +270,7 @@ char *__gen_var_ir(AST *ast,int indentation) {
         }
         fprintf(f,")");
     }
-    fprintf(f,";");
+    fprintf(f,";\n");
     return __gen_string(f);
 }
 char *__gen_switch_ir(AST *ast,int indentation) {
@@ -487,5 +508,17 @@ char * __gen_enum_ir(AST *ast,int indentation) {
     }
     get_indent(f,indentation);
     fprintf(f,"}");
+    return __gen_string(f);
+}
+char * __gen_goto_ir(AST *ast,int indentation) {
+    FILE *f = tmpfile();
+    get_indent(f,indentation);
+    fprintf(f,"goto %s;\n",ast->left_symbol->name);
+    return __gen_string(f);
+}
+
+char * __gen_label_ir(AST *ast,int indentation) {
+    FILE *f = tmpfile();
+    fprintf(f,"%s:\n",ast->left_symbol->name);
     return __gen_string(f);
 }

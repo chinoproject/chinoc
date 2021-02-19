@@ -46,10 +46,45 @@ symbol_t *search_var(Table *table,const char *name) {
     symbol_t *temp = table->items[hash];
     if (temp == NULL)
         return NULL;
-    if (!strcmp(name,temp->name))
+    if (!strcmp(name,temp->name) && (temp->status != LABEL))
         return temp;
     for(symbol_t *i = temp->hash_next; i != temp;i = i->hash_next) {
-        if(strcmp(name,i->name) == 0)
+        if((strcmp(name,i->name) == 0) && (temp->status != LABEL))
+            if (i->type.t & T_MASK)
+                return i;
+    }
+    return NULL;
+}
+symbol_t *search_label(const char *name) {
+    //搜索goto语句使用的标号
+    if (name == NULL)
+        return NULL;
+    size_t len = strlen(name);
+    XXH64_hash_t hash = XXH64(name,len,SEED) % (local_table->len);
+    symbol_t *temp = local_table->items[hash];
+    if (temp == NULL)
+        return NULL;
+    if (!strcmp(name,temp->name) && (temp->status == LABEL))
+        return temp;
+    for(symbol_t *i = temp->hash_next; i != temp;i = i->hash_next) {
+        if((strcmp(name,i->name) == 0) && (temp->status == LABEL))
+            if (i->type.t & T_MASK)
+                return i;
+    }
+    return NULL;
+}
+symbol_t *search_unknow_label(const char *name) {
+    if (name == NULL)
+        return NULL;
+    size_t len = strlen(name);
+    XXH64_hash_t hash = XXH64(name,len,SEED) % (unknown_table->len);
+    symbol_t *temp = unknown_table->items[hash];
+    if (temp == NULL)
+        return NULL;
+    if (!strcmp(name,temp->name) && (temp->status == LABEL))
+        return temp;
+    for(symbol_t *i = temp->hash_next; i != temp;i = i->hash_next) {
+        if((strcmp(name,i->name) == 0) && (temp->status == LABEL))
             if (i->type.t & T_MASK)
                 return i;
     }

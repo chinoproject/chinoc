@@ -1,6 +1,7 @@
 #ifndef __GEN_IR_H
 #define __GEN_IR_H
 #include "ast.h"
+#include <stdio.h>
 //生成HIR
 typedef struct __hir {
     char **ir;
@@ -24,17 +25,7 @@ void free_hir(HIR *hir);
     fprintf(f,t);   \
     free(t);    \
 }
-/*
-#define repeat_str(str,n) { \
-    size_t _len = strlen(str);  \
-    char *re_str = malloc(sizeof(char)*_len + 1);   \
-    if (re_str == NULL) {   \
-        error("OOM");   \
-    } else {   \
-        for(size_t i = 0;i < n;i++) {   \
-            strncpy(re_str + i*_len,_len,str);  \
-        }   \
-    }   \
-    re_str; \
-}*/
+char * __gen_goto_ir(AST *ast,int indentation);
+char * __gen_label_ir(AST *ast,int indentation);
+void __gen_type_ir(FILE *f,symbol_t *s);
 #endif

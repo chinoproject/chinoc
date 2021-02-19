@@ -12,6 +12,7 @@
 #define CODE_BLOCK      7
 #define FUNC            8
 #define DEF_VAR         9
+#define LABEL           10
 //三种循环类型
 #define AST_FOR     1
 #define AST_WHILE   2

@@ -428,10 +428,34 @@ AST *statement(int v,int flag,header_t *header) {
                 break;
             case DO:
                 ast = do_statement(v,header);
+                break;
+            case GOTO:
+                ast = goto_statement(v,header);
+                break;
+            case ID: {
+                symbol_t *symbol = search_label(metadata_ptr->content);
+                if (symbol == NULL) {
+                    symbol = search_unknow_label(metadata_ptr->content);
+                    if (symbol == NULL) {
+                        symbol = new_symbol();
+                        symbol->name = metadata_ptr->content;
+                        symbol->status = SLABEL;
+                    } else
+                        delete_item(unknown_table,symbol);
+                    insert_item(local_table,symbol);
+                }
+                get_token();
+                ast = newAST(LABEL,ISSYMBOL,NONE,NULL,NULL,symbol,NULL,0,NULL,NULL,NULL,NULL);
+                skip(COLON);
+                break;
+            }
             case YYEOF:
                 break;
             default:
-                ast = expression_statement();
+                if (is_type_specifier())
+                    ast = external_declaration(v,header);
+                else
+                    ast = expression_statement();
                 break;
         }
     } else {
@@ -448,7 +472,7 @@ int is_type_specifier(void) {
         case STRUCT:
         case CHAR:
         case SHORT:
-        case ID:    //it's test
+        //case ID:    //it's test
         case UNION:
         case ENUM:
         case VOID:
@@ -1063,4 +1087,19 @@ void freeHeader(header_t *p) {
 void check_header(header_t *p) {
     if (p->header_len == p->header_count)
         p->header = realloc(p->header,sizeof(char *)*p->header_len*2);
+}
+
+AST *goto_statement(int v,header_t *header) {
+    get_token();
+    symbol_t *symbol = search_label(metadata_ptr->content);
+    if (symbol == NULL) {
+        symbol = new_symbol();
+        symbol->name = metadata_ptr->content;
+        symbol->status = SDEFINE;
+        insert_item(unknown_table,symbol);
+    }
+    get_token();
+    AST *ast = newAST(GOTO,ISSYMBOL,NONE,NULL,NULL,symbol,NULL,0,NULL,NULL,NULL,NULL);
+    skip(SEM);
+    return ast;
 }
