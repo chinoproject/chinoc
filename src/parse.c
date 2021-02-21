@@ -13,22 +13,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-#define FIFO "cc_stdout_fifo"
 int token;
-int back_token[4];
-int tindex;
 extern int yylex(void);
 extern FILE *yyin;
 struct metadata_struct *metadata_ptr;
 Table *local_table;
-char **header;
-size_t header_len;
-size_t header_count;
 symbol_t *is_basic_type(void);
 void get_token(void) {
     token = yylex();
 }
-symbol_t *global_symbol;
 void struct_declaration(symbol_t *s) {
     symbol_t *i = is_basic_type();
     symbol_t *t = NULL;
@@ -559,7 +552,6 @@ AST *primary_expression(symbol_t *t) {
             value->ptr = metadata_ptr->content;
             value->len = metadata_ptr->len;
             s->value = value;
-            global_symbol = s;
             ast = newVar(0,s);
             ast->type = token;
             break;
