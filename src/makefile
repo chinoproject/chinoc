@@ -1,5 +1,5 @@
 objects =  main.o parse.o lex.o symbol.o ast.o gen_ir.o gc.o
-CFLAGS = -lfl -lxxhash -g3 -gdwarf-2 -ggdb3 -O0
+CFLAGS = -lfl -lxxhash -g3 -gdwarf-2 -ggdb3 -O0 -I include/
 CC = gcc
 cc: $(objects)
 	$(CC) $(objects) $(CFLAGS) -o cc
