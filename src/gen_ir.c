@@ -226,7 +226,7 @@ char *__gen_var_ir(AST *ast,int indentation) {
             fprintf(f,"%s ",x);
             _free(x);
             if (p->dim) {
-                for(int i = 0;i < p->dim;i++)
+                for(int i = p->dim - 1;i >= 0;i--)
                     fprintf(f,"[%d]",p->array[i]);
                 fprintf(f," ");
             }
