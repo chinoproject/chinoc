@@ -10,7 +10,7 @@ typedef struct __hir {
 } HIR;
 #define DEFAULT_IR_LEN 1000
 HIR *gen_ir(AST *ast);
-char *__gen_expression_ir(AST *ast);
+char *__gen_expression_ir(AST *ast,int is_assign);
 char *__gen_if_ir(AST *ast,int indentation);
 char *__gen_loop_ir(AST *ast,int indentation);
 char *__gen_func_ir(AST *ast,int indentation);

@@ -35,7 +35,8 @@ typedef enum __storageclass {
     SUNION = 0x320000000,
     SENUM = 0x640000000,
     SDEFINE = 0x128000000,
-    SLABEL = 0x256000000
+    SLABEL = 0x256000000,
+    NEGATIVE = 0x512000000
 } StorageClass;
 extern StorageClass storageclass;
 typedef struct __symbol symbol_t;
@@ -61,6 +62,11 @@ typedef struct __pointer_struct {
     int pointer;
     struct __pointer_struct *next;
 } pointer_t;
+typedef struct __symbol_size_t {
+    int byte;
+    size_t count;
+    struct __symbol_size_t *next;
+} symbol_size_t;
  typedef struct __symbol {
     type_t type;                    // 符号的类型       
     char *name;                     // 符号名
@@ -69,6 +75,7 @@ typedef struct __pointer_struct {
     size_t total;
     value_t *value;                 // 符号的值
     AST *ast;                       // 调用函数时，参数的表达式
+    symbol_size_t *size;
     struct __symbol *next;          // 下一个结构体成员,匿名符号
     struct __symbol *hash_next;     // hash冲突的下一个符号
     struct __symbol *hash_prev;     // hash冲突的上一个符号
@@ -77,7 +84,7 @@ typedef struct __table {
     symbol_t **items;
     size_t len;          //items长度
     size_t entrycount;  //items数量
-} __attribute__((aligned (4))) Table;
+} Table;
 extern Table *global_table;      //全局符号表
 extern Table *unknown_table;     //未定义类型符号表
 extern Table *local_table;       //局部符号表

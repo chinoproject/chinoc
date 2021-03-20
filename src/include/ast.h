@@ -21,7 +21,7 @@
 #define NONE        0
 #define ISAST       1
 #define ISSYMBOL    2
-
+#define ISSTACK     3
 #define default_body_len 32
 typedef struct __ast AST;
 typedef struct __statement {
@@ -48,6 +48,7 @@ typedef struct __ast {
     struct __ast *else_body;    //if-elseif-else语句使用
     struct __ast *next;         // 函数参数
     };
+    cc_stack_t *stack;
     Statement *body;
 } AST;
 AST *newArrayIndex(int left_type,int right_type,symbol_t *left_symbol,symbol_t *right_symbol, \
