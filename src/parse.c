@@ -19,8 +19,18 @@ extern FILE *yyin;
 struct metadata_struct *metadata_ptr;
 Table *local_table;
 symbol_t *is_basic_type(void);
+int untoken;
+int else_if_flag;
 void get_token(void) {
-    token = yylex();
+    if (untoken == YYEOF)
+        token = yylex();
+    else {
+        token = untoken;
+        untoken = YYEOF;
+    }
+}
+void unget_token(int t) {
+    untoken = t;
 }
 void struct_declaration(symbol_t *s) {
     symbol_t *i = is_basic_type();
@@ -274,6 +284,7 @@ void direct_declarator(symbol_t *t,int lp_count) {
             symbol_t *s = search_var(unknown_table,t->name);
             if (s != NULL)
                 delete_item(unknown_table,s);
+
             if (search_var(local_table,t->name) == NULL && \
                 search_var(global_table,t->name) == NULL) {
                     if (local_table != NULL)
@@ -323,6 +334,7 @@ void declaration(symbol_t *t) {
 AST *funcbody(header_t *header) {
     local_table = alloc_table();
     init_table(local_table,default_symbol_len);
+    get_token();
     AST *ast = compound_statement(C_LOCAL,NO_LOOP_OR_SWTICH,header);
     free_table(local_table);
     local_table = NULL;
@@ -345,6 +357,7 @@ AST *external_declaration(int i,header_t *header) {
             t = temp;
         }
         declaration(t);
+        //search_var(unknown_table,)
         if (token == LBB) {
             if (i == C_LOCAL) {
                 error("不支持嵌套定义");
@@ -393,8 +406,11 @@ AST *expression_statement(void) {
 }
 AST *statement(int v,int flag,header_t *header) {
     AST *ast = NULL;
-    if (token == LBB)
-        return compound_statement(v,flag,header);
+    if (token == LBB) {
+        get_token();
+        ast = compound_statement(v,flag,header);
+        return ast;
+    }
     if (v == C_LOCAL) {
         switch(token) {
             case IF:
@@ -425,27 +441,33 @@ AST *statement(int v,int flag,header_t *header) {
             case GOTO:
                 ast = goto_statement(v,header);
                 break;
+            case RETURN:
+                ast = return_statement(v,header);
+                break;
             case ID: {
-                symbol_t *symbol = search_label(metadata_ptr->content);
-                if (symbol == NULL) {
-                    symbol = search_unknow_label(metadata_ptr->content);
-                    if (symbol == NULL) {
-                        symbol = new_symbol();
-                        symbol->name = metadata_ptr->content;
-                        symbol->status = SLABEL;
-                    } else
-                        delete_item(unknown_table,symbol);
-                    insert_item(local_table,symbol);
-                }
+                int temp = token;
                 get_token();
+                symbol_t *symbol;
+                if (token == COLON) {
+                    //定义goto语句使用的标号
+                    symbol = new_symbol();
+                    symbol->name = metadata_ptr->content;
+                    symbol->status = LABEL;
+                    insert_item(local_table,symbol);
+                } else {  //非goto定义
+                    unget_token(token);
+                    token = temp;
+                    goto no_goto;
+                }
                 ast = newAST(LABEL,ISSYMBOL,NONE,NULL,NULL,symbol,NULL,0,NULL,NULL,NULL,NULL);
-                skip(COLON);
+                get_token();
                 break;
             }
             case YYEOF:
                 break;
             default:
-                if (is_type_specifier())
+no_goto:
+                if (is_type_specifier())    //符号定义或者赋值
                     ast = external_declaration(v,header);
                 else
                     ast = expression_statement();
@@ -453,6 +475,7 @@ AST *statement(int v,int flag,header_t *header) {
         }
     } else {
         error("error\n");
+        printf("%d",token);
         exit(1);
     }
     
@@ -476,7 +499,6 @@ int is_type_specifier(void) {
 }
 
 AST *compound_statement(int v,int flag,header_t *header) {
-    get_token();
     Statement *s = newStatement(default_body_len);
     while (token == INCLUDE || token == DEFINE) {
         int t = token;
@@ -523,11 +545,11 @@ AST *compound_statement(int v,int flag,header_t *header) {
             continue;
         add_ast(s,temp);
     }
-    while (token != RBB && token != YYEOF) {
+    while (!(token == RBB || token==YYEOF)) {
         temp = statement(v,flag,header);
         add_ast(s,temp);
     }
-    get_token();
+    //get_token();
     return newAST(CODE_BLOCK,NONE,NONE,NULL,NULL,NULL,NULL,0,NULL,NULL,NULL,s);
 }
 AST *sizeof_expression(void) {
@@ -927,9 +949,13 @@ AST *if_statement(int v,int flag,header_t *header) {
     cond = expression();
     skip(RP);
     body = statement(v,flag,header);
+    skip(RBB);
     if(token == ELSE) {
         get_token();
+        int temp = token;
         else_body = statement(v,flag,header);
+        if (temp != IF)
+            skip(RBB);
     }
     return newIf(cond,body->body,else_body);
 }
@@ -942,10 +968,11 @@ AST *for_statement(int v,header_t *header) {
     skip(SEM);
     cond = expression();
     skip(SEM);
-
     cond2 = expression();
     skip(RP);
     body = statement(v,LOOP_OR_SWITCH,header);
+    skip(RBB);
+    //body->body = newStatement(default_body_len);
     body->body->ast[body->body->astcount] = cond2;
     body->body->astcount++;
     body->body->ast[body->body->astcount] = cond;
@@ -970,6 +997,7 @@ AST *switch_statement(int v,header_t *header) {
                 error("case语句不能存在变量");
             skip(COLON);
             Statement *case_statement = statement(v,LOOP_OR_SWITCH,header)->body;
+            skip(RBB);
             AST *case_body = newAST(CASE,NONE,NONE,NULL,NULL,NULL,NULL,0,case_cond, \
                                     NULL,NULL,case_statement);
             add_ast(body,case_body);
@@ -978,11 +1006,13 @@ AST *switch_statement(int v,header_t *header) {
             skip(COLON);
             AST *default_body;
             Statement *default_statement = statement(v,LOOP_OR_SWITCH,header)->body;
+            skip(RBB);
             default_body = newAST(DEFAULT,NONE,NONE,NULL,NULL,NULL,NULL,0,NULL,NULL, \
                                 NULL,default_statement);
             add_ast(body,default_body);
         }
     }
+    get_token();
     ast = newSwitch(cond,body);
     return ast;
 }
@@ -992,6 +1022,7 @@ AST *do_statement(int v,header_t *header) {
     AST *ast;
     skip(DO);
     s = statement(v,LOOP_OR_SWITCH,header)->body;
+    skip(RBB);
     skip(WHILE);
     skip(LP);
     exp = expression();
@@ -1018,8 +1049,11 @@ void parse_header(header_t *header) {
         yyin = fopen(header->header[n] + 1,"r");
         token = YYEMPTY;
         AST *ast;
-        while (token != YYEOF)
+        get_token();
+        while (token != YYEOF) {
             ast = compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH,h);
+            get_token();
+        }
         parse_header(h);
         gen_ir(ast);
         printf("\n");
@@ -1027,13 +1061,24 @@ void parse_header(header_t *header) {
 }
 void parse_unit(header_t *header) {
     token = YYEMPTY;
+    untoken = YYEOF;
     AST *ast;
-    while(token != YYEOF)
+    Statement *statement = newStatement(default_body_len);
+    get_token();
+    while(token != YYEOF) {
         ast = compound_statement(C_GLOBAL,NO_LOOP_OR_SWTICH,header);
+        add_ast(statement,ast);
+        get_token();
+    }
     parse_header(header);
-    gen_ir(ast);
+    for(size_t n = 0;n <statement->astcount;n++)
+        gen_ir(statement->ast[n]);
     if (unknown_table->entrycount != 0)
         error("存在未定义的变量\n");
+    for(size_t n = 0;n < unknown_table->len;n++) {
+        if (unknown_table->items[n] != NULL)
+            printf("%s\n",unknown_table->items[n]->name);
+    }
 }
 AST *while_statement(int v,header_t *header) {
     AST *cond,*body;
@@ -1042,6 +1087,7 @@ AST *while_statement(int v,header_t *header) {
     cond = expression();
     skip(RP);
     body = statement(v,LOOP_OR_SWITCH,header);
+    skip(RBB);
     return newWhile(cond,body->body);
 }
 
@@ -1094,4 +1140,9 @@ AST *goto_statement(int v,header_t *header) {
     AST *ast = newAST(GOTO,ISSYMBOL,NONE,NULL,NULL,symbol,NULL,0,NULL,NULL,NULL,NULL);
     skip(SEM);
     return ast;
+}
+AST *return_statement(int v,header_t *header) {
+    get_token();
+    AST *ast = expression_statement();
+    return newAST(RETURN,ISAST,NONE,ast,NULL,NULL,NULL,0,NULL,NULL,NULL,NULL);
 }

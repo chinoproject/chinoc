@@ -53,7 +53,7 @@ HIR *gen_ir(AST *ast) {
             /*case ENUM:
                 ir->ir[n] == __gen_enum_ir(ast->body->ast[n],0);*/
             default:
-                ir->ir[n] = __gen_expression_ir(ast->body->ast[n]);
+                ir->ir[n] = __gen_expression_ir(ast->body->ast[n],0);
                 size_t len = strlen(ir->ir[n]);
                 ir->ir[n][len] = ';';
                 ir->ir[n][len + 1] = 0;
@@ -81,12 +81,12 @@ void __gen_ir(FILE *f,AST *ast,int indentation) {
     switch(ast->type) {
         case IF:
             str = __gen_if_ir(ast,indentation + 1);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
             _free(str);
             break;
         case LOOP:
             str = __gen_loop_ir(ast,indentation + 1);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
             _free(str);
             break;
         case CONTINUE:
@@ -99,7 +99,7 @@ void __gen_ir(FILE *f,AST *ast,int indentation) {
             break;
         case CASE:
             get_indent(f,indentation + 1);
-            str = __gen_expression_ir(ast->cond);
+            str = __gen_expression_ir(ast->cond,0);
             fprintf(f,"case %s:\n",str);
             for(size_t n = 0;n < ast->body->astcount;n++) {
                 __gen_ir(f,ast->body->ast[n],indentation + 1);
@@ -116,36 +116,42 @@ void __gen_ir(FILE *f,AST *ast,int indentation) {
         case FUNC_CALL:
             get_indent(f,indentation + 1);
             str = __gen_func_ir(ast,indentation + 1);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
             _free(str);
             break;
         case SWITCH:
             get_indent(f,indentation + 1);
             str = __gen_switch_ir(ast,indentation);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
             _free(str);
             break;
         case DEF_VAR:
             str = __gen_var_ir(ast,indentation + 1);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
             _free(str);
             break;
         case LABEL:
             str = __gen_label_ir(ast,0);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
             _free(str);
             break;
         case GOTO:
             get_indent(f,indentation + 1);
             str = __gen_goto_ir(ast,0);
-            fprintf(f,str);
+            fprintf(f,"%s",str);
+            _free(str);
+            break;
+        case RETURN:
+            get_indent(f,indentation + 1);
+            str = __gen_expression_ir(ast,0);
+            fprintf(f,"return %s;\n",str);
             _free(str);
             break;
         default:
             get_indent(f,indentation + 1);
-            __gen_type_ir(f,ast->left_symbol);
-            str = __gen_expression_ir(ast);
-            fprintf(f,str);
+            //__gen_type_ir(f,ast->left_symbol);
+            str = __gen_expression_ir(ast,0);
+            fprintf(f,"%s",str);
             fprintf(f,";\n");
             _free(str);
             break;
@@ -207,7 +213,8 @@ char *__gen_func_ir(AST *ast,int indentation) {
     } else {
         fprintf(f,"%s(",ast->left_symbol->name);
         for(symbol_t *s = ast->left_symbol->next; s != NULL;s = s->next) {
-            fprintf(f," %s",s->name);
+            if (s->name != NULL)
+                fprintf(f," %s",s->name);
             if (s->next != NULL)
                 fprintf(f,",");
         }
@@ -226,7 +233,7 @@ char *__gen_var_ir(AST *ast,int indentation) {
             fprintf(f,"%s ",x);
             _free(x);
             if (p->dim) {
-                for(int i = 0;i < p->dim;i++)
+                for(int i = p->dim - 1;i >= 0;i--)
                     fprintf(f,"[%d]",p->array[i]);
                 fprintf(f," ");
             }
@@ -240,6 +247,19 @@ char *__gen_var_ir(AST *ast,int indentation) {
         for(symbol_t *s = ast->left_symbol->next;s != NULL;s = s->next) {
             get_indent(f,indentation + 1);
             __gen_type_ir(f,s);
+            if (s->type.t & T_POINTER) {
+                for(pointer_t *p = s->p;p != NULL;p = p->next) {
+                    char *x = repeat_str("*",p->pointer);
+                    fprintf(f,"%s ",x);
+                    _free(x);
+                    if (p->dim) {
+                        for(int i = p->dim - 1;i >= 0;i--)
+                            fprintf(f,"[%d]",p->array[i]);
+                        fprintf(f," ");
+                    }
+
+                }
+            }
             fprintf(f,"%s;\n",s->name);
         }
         get_indent(f,indentation);
@@ -249,6 +269,19 @@ char *__gen_var_ir(AST *ast,int indentation) {
         for(symbol_t *s = ast->left_symbol->next;s != NULL;s = s->next) {
             get_indent(f,indentation + 1);
             __gen_type_ir(f,s);
+            if (s->type.t & T_POINTER) {
+                for(pointer_t *p = s->p;p != NULL;p = p->next) {
+                    char *x = repeat_str("*",p->pointer);
+                    fprintf(f,"%s ",x);
+                    _free(x);
+                    if (p->dim) {
+                        for(int i = p->dim - 1;i >= 0;i--)
+                            fprintf(f,"[%d]",p->array[i]);
+                        fprintf(f," ");
+                    }
+
+                }
+            }
             fprintf(f,"%s;\n",s->name);
         }
         get_indent(f,indentation);
@@ -275,8 +308,9 @@ char *__gen_var_ir(AST *ast,int indentation) {
 }
 char *__gen_switch_ir(AST *ast,int indentation) {
     FILE *f = tmpfile();
+    fprintf(f,"\n");
     get_indent(f,indentation);
-    fprintf(f,"switch(%s){\n",__gen_expression_ir(ast->cond));
+    fprintf(f,"switch(%s){\n",__gen_expression_ir(ast->cond,0));
     for(size_t n = 0;n < ast->body->astcount;n++)
         __gen_ir(f,ast->body->ast[n],indentation);
     get_indent(f,indentation);
@@ -285,16 +319,17 @@ char *__gen_switch_ir(AST *ast,int indentation) {
 }
 char *__gen_loop_ir(AST *ast,int indentation) {
     FILE *f = tmpfile();
+    fprintf(f,"\n");
     switch(ast->op) {
         case AST_FOR:
             //将for循环转换为while循环
             get_indent(f,indentation);
             fprintf(f,"{\n");
             get_indent(f,indentation + 1);
-            fprintf(f,__gen_expression_ir(ast->left_ast));
+            fprintf(f,__gen_expression_ir(ast->left_ast,0));
             fprintf(f,";\n");
             get_indent(f,indentation + 1);
-            fprintf(f,"while(%s){\n",__gen_expression_ir(ast->body->ast[ast->body->astcount - 1]));
+            fprintf(f,"while(%s){\n",__gen_expression_ir(ast->body->ast[ast->body->astcount - 1],0));
             for(size_t n = 0;n < ast->body->astcount - 1;n++) {
                 get_indent(f,indentation + 2);
                 __gen_ir(f,ast->body->ast[n],indentation);
@@ -306,7 +341,7 @@ char *__gen_loop_ir(AST *ast,int indentation) {
             break;
         case AST_WHILE:
             get_indent(f,indentation);
-            fprintf(f,"while(%s){\n",__gen_expression_ir(ast->cond));
+            fprintf(f,"while(%s){\n",__gen_expression_ir(ast->cond,0));
             for(size_t n = 0;n < ast->body->astcount;n++) {
                 //get_indent(f,indentation + 1);
                 __gen_ir(f,ast->body->ast[n],indentation);
@@ -321,7 +356,7 @@ char *__gen_loop_ir(AST *ast,int indentation) {
                 __gen_ir(f,ast->body->ast[n],indentation);
             }
             get_indent(f,indentation);
-            fprintf(f,"} while(%s)\n",__gen_expression_ir(ast->cond));
+            fprintf(f,"} while(%s)\n",__gen_expression_ir(ast->cond,0));
             break;
     }
     return __gen_string(f);
@@ -329,18 +364,27 @@ char *__gen_loop_ir(AST *ast,int indentation) {
 char *__gen_if_ir(AST *ast,int indentation) {
     FILE *f = tmpfile();
     get_indent(f,indentation);
-    fprintf(f,"if(");
-    char *str = __gen_expression_ir(ast->cond);
-    fprintf(f,str);
-    _free(str);
-    fprintf(f,"){\n");
+    if (ast->cond != NULL) {
+        fprintf(f,"if(");
+        char *str = __gen_expression_ir(ast->cond,0);
+        fprintf(f,str);
+        _free(str);
+        fprintf(f,"){\n");
+    } else {
+        fprintf(f,"{\n");
+    }
     for(size_t n = 0;n < ast->body->astcount;n++)
         __gen_ir(f,ast->body->ast[n],indentation);
     get_indent(f,indentation);
-    fprintf(f,"}\n");
+    fprintf(f,"}");
+    if (ast->else_body != NULL) {
+        fprintf(f," else ");
+        char *str = __gen_if_ir(ast->else_body,indentation);
+        fprintf(f,"%s",str);
+    }
     return __gen_string(f);
 }
-char *__gen_expression_ir(AST *ast) {
+char *__gen_expression_ir(AST *ast,int is_assign) {
     if (ast == NULL)
         return NULL;
     FILE *buffer = tmpfile();
@@ -359,9 +403,11 @@ char *__gen_expression_ir(AST *ast) {
     if (ast->op == PAR)
        fprintf(buffer,"(");
     if (ast->left_type == ISAST) {
-        char *t = __gen_expression_ir(ast->left_ast);
+        char *t = __gen_expression_ir(ast->left_ast,0);
         if (t != NULL)
             fprintf(buffer,t);
+        if (ast->op == ASSIGN)
+            fprintf(buffer," =");
     } else if (ast->left_type == ISSYMBOL && ast->left_symbol != NULL) {
         if (ast->type == ID && ast->op != 0) {
             switch(ast->op) {
@@ -379,13 +425,13 @@ char *__gen_expression_ir(AST *ast) {
             fprintf(buffer," %s ",ast->left_symbol->name);
         else if (ast->left_symbol->value != NULL)
             fprintf(buffer," %s ",(char *)ast->left_symbol->value->ptr);
-        if (ast->op == ASSIGN)
+        if (ast->op == ASSIGN || is_assign == ASSIGN)
             fprintf(buffer," = ");
     }
     if (ast->type == ARRAY_INDEX)
         fprintf(buffer,"[");
     if (ast->right_type == ISAST) {
-        char *t = __gen_expression_ir(ast->right_ast);
+        char *t = __gen_expression_ir(ast->right_ast,0);
         if (t != NULL)
             fprintf(buffer,t);
     } else if (ast->right_type == ISSYMBOL && ast->right_symbol != NULL) {
@@ -481,7 +527,7 @@ char *__gen_expression_ir(AST *ast) {
     else if (ast->type == FUNC_CALL)  {
         fprintf(buffer,"(");
         for(AST *a = ast->next; a != NULL;a = a->next) {
-            __gen_expression_ir(a);
+            __gen_expression_ir(a,0);
             if (a->next != NULL)
                 fprintf(buffer,",");
         }

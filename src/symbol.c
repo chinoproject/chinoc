@@ -111,13 +111,17 @@ void insert_item(Table *t,symbol_t *s) {
 
 void delete_item(Table *t,symbol_t *s) {
     size_t len = strlen(s->name);
-    XXH32_hash_t hash = XXH64(s,len,SEED) % (t->len);
+    XXH32_hash_t hash = XXH64(s->name,len,SEED) % (t->len);
     symbol_t *i = s->hash_prev;
-    if(i == NULL)
-        return;
-    
-    i->hash_next = s->next;
-    t->entrycount--;
+    if(i == i->hash_prev) {
+        if (t->items[hash] != NULL) {
+            t->items[hash] = NULL;
+            t->entrycount--;
+        }
+    } else {
+        i->hash_next = s->next;
+        t->entrycount--;
+    }
 }
 
 void rehash_table(Table *t) {
